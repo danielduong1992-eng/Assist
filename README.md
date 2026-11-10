@@ -1,19 +1,38 @@
 # Assist
 
-A light daily desk for the places you work across — local time and weather, with quick add/remove.
+Light Windows desktop app for daily work across places — local time and weather, with quick add/remove.
 
-## Run locally
+## Features
 
-Serve the project root with any static server:
+- Live local time for each saved place
+- Current weather (Open-Meteo, no API key)
+- Add places by city search
+- Remove places in one click
+- Places saved on this PC (`%USERPROFILE%\.assist\places.json`)
 
-```bash
-python3 -m http.server 4173 --bind 127.0.0.1
+## Requirements
+
+- Windows 10/11
+- Python 3.10+ (python.org installer includes `tkinter`)
+
+## Run
+
+```bat
+python main.py
 ```
 
-Open `http://127.0.0.1:4173`.
+Or double-click `scripts\run-assist.bat`.
 
-## Notes
+## Build a Windows app folder
 
-- Places are stored in your browser (`localStorage`)
-- Weather data comes from [Open-Meteo](https://open-meteo.com/) (no API key)
-- Designed mobile-first and keeps the UI intentionally light
+```bat
+scripts\build-windows.bat
+```
+
+Then run `dist\Assist\Assist.exe`.
+
+## Light footprint
+
+- No web server, no Electron, no Node
+- Stdlib UI (`tkinter`) + HTTPS weather calls
+- Optional PyInstaller only when packaging

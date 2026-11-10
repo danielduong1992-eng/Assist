@@ -1,0 +1,5 @@
+# Needed on Windows for IANA time zones (ZoneInfo).
+tzdata>=2024.1
+
+# Optional packaging on Windows:
+pyinstaller>=6.3.0
