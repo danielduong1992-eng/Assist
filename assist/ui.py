@@ -8,6 +8,8 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from assist import storage
+from assist.packet_monitor import Alert, PacketMonitor
+from assist.threat_rules import ThreatFinding
 from assist.weather import WeatherError, result_to_place, safe_fetch_weather, safe_search, weather_label
 
 
@@ -22,6 +24,9 @@ COLORS = {
     "accent": "#1f6f6a",
     "accent_text": "#f7fffe",
     "danger": "#9b3b32",
+    "warn": "#8a5a12",
+    "warn_bg": "#fff4df",
+    "danger_bg": "#f8e8e6",
     "chip": "#eef5f4",
 }
 
@@ -39,13 +44,19 @@ class AssistApp(tk.Tk):
         self._place_frames: dict[str, dict[str, Any]] = {}
         self._busy = False
         self._suggest_after: str | None = None
+        self._alert_queue: list[Alert] = []
+        self.monitor = PacketMonitor(on_alert=self._on_monitor_alert)
 
         self._setup_style()
         self._build()
         self._render_places()
+        self._render_alerts()
         self.after(50, self.refresh_weather)
         self.after(1000, self._tick_clocks)
         self.after(10 * 60 * 1000, self._schedule_weather)
+        self.after(200, self._start_monitor)
+        self.after(400, self._drain_alert_queue)
+        self.protocol("WM_DELETE_WINDOW", self._on_close)
 
         self.bind("<Configure>", self._on_resize)
 
@@ -82,6 +93,24 @@ class AssistApp(tk.Tk):
             background=COLORS["bg"],
             foreground=COLORS["muted"],
             font=("Segoe UI", 9),
+        )
+        style.configure(
+            "AlertTitle.TLabel",
+            background=COLORS["panel"],
+            foreground=COLORS["danger"],
+            font=("Segoe UI Semibold", 11),
+        )
+        style.configure(
+            "AlertBody.TLabel",
+            background=COLORS["panel"],
+            foreground=COLORS["ink"],
+            font=("Segoe UI", 9),
+        )
+        style.configure(
+            "Guard.TLabel",
+            background=COLORS["bg"],
+            foreground=COLORS["ink"],
+            font=("Georgia", 13),
         )
         style.configure(
             "Name.TLabel",
@@ -191,6 +220,66 @@ class AssistApp(tk.Tk):
             row=4, column=0, sticky="w", pady=(8, 0)
         )
 
+        self.alert_banner = tk.Frame(header, bg=COLORS["danger_bg"], highlightthickness=0)
+        self.alert_banner.grid(row=5, column=0, sticky="ew", pady=(10, 0))
+        self.alert_banner.grid_remove()
+        self.alert_banner_var = tk.StringVar(value="")
+        tk.Label(
+            self.alert_banner,
+            textvariable=self.alert_banner_var,
+            bg=COLORS["danger_bg"],
+            fg=COLORS["danger"],
+            font=("Segoe UI Semibold", 10),
+            justify="left",
+            anchor="w",
+            padx=12,
+            pady=8,
+            wraplength=640,
+        ).pack(fill="x")
+
+        guard = ttk.Frame(header, style="Root.TFrame")
+        guard.grid(row=6, column=0, sticky="ew", pady=(12, 0))
+        guard.columnconfigure(0, weight=1)
+        ttk.Label(guard, text="Network guard", style="Guard.TLabel").grid(row=0, column=0, sticky="w")
+        self.guard_status_var = tk.StringVar(value="Starting monitor…")
+        ttk.Label(guard, textvariable=self.guard_status_var, style="Status.TLabel").grid(
+            row=1, column=0, sticky="w", pady=(2, 0)
+        )
+        actions = ttk.Frame(guard, style="Root.TFrame")
+        actions.grid(row=0, column=1, rowspan=2, sticky="e")
+        tk.Button(
+            actions,
+            text="Clear alerts",
+            command=self.clear_alerts,
+            bg=COLORS["panel"],
+            fg=COLORS["ink"],
+            activebackground=COLORS["chip"],
+            relief="groove",
+            bd=1,
+            cursor="hand2",
+            font=("Segoe UI", 9),
+            padx=10,
+            pady=4,
+        ).grid(row=0, column=0, padx=(0, 6))
+        tk.Button(
+            actions,
+            text="Test alert",
+            command=self._test_alert,
+            bg=COLORS["accent"],
+            fg=COLORS["accent_text"],
+            activebackground=COLORS["accent"],
+            activeforeground=COLORS["accent_text"],
+            relief="flat",
+            bd=0,
+            cursor="hand2",
+            font=("Segoe UI Semibold", 9),
+            padx=12,
+            pady=5,
+        ).grid(row=0, column=1)
+
+        self.alerts_frame = ttk.Frame(header, style="Root.TFrame")
+        self.alerts_frame.grid(row=7, column=0, sticky="ew", pady=(8, 0))
+
         self._suggest_results: list[dict[str, Any]] = []
         self.suggest_list = tk.Listbox(
             self,
@@ -230,7 +319,7 @@ class AssistApp(tk.Tk):
 
         footer = ttk.Label(
             self,
-            text="Weather via Open-Meteo  ·  Places saved on this PC",
+            text="Weather via Open-Meteo  ·  Network guard watches this PC  ·  Places saved locally",
             style="Muted.TLabel",
             padding=(22, 0, 22, 14),
         )
@@ -540,7 +629,131 @@ class AssistApp(tk.Tk):
                 bits.append(f"{round(wind)} km/h wind")
             meta["extras"].configure(text=" · ".join(bits))
 
+    def _start_monitor(self) -> None:
+        self.monitor.start()
+        self._refresh_guard_status()
+        self.after(4000, self._refresh_guard_status)
+
+    def _refresh_guard_status(self) -> None:
+        snap = self.monitor.snapshot()
+        mode = snap.mode.replace("+", " + ")
+        if snap.running:
+            self.guard_status_var.set(
+                f"Watching ({mode}) · {snap.connection_samples} connection scans · {len(snap.alerts)} alerts"
+            )
+        else:
+            self.guard_status_var.set("Monitor stopped")
+        if snap.last_error and "Packet capture unavailable" in snap.last_error:
+            # Soft note only — connection analysis still runs.
+            pass
+        if self.monitor.running:
+            self.after(5000, self._refresh_guard_status)
+
+    def _on_monitor_alert(self, alert: Alert) -> None:
+        # Called from monitor thread — queue for UI thread.
+        self._alert_queue.append(alert)
+
+    def _drain_alert_queue(self) -> None:
+        while self._alert_queue:
+            alert = self._alert_queue.pop(0)
+            self._notify_alert(alert)
+        self.after(400, self._drain_alert_queue)
+
+    def _notify_alert(self, alert: Alert) -> None:
+        self._render_alerts()
+        banner = f"{alert.severity.upper()}: {alert.title}"
+        self.alert_banner_var.set(banner)
+        bg = COLORS["danger_bg"] if alert.severity == "danger" else COLORS["warn_bg"]
+        fg = COLORS["danger"] if alert.severity == "danger" else COLORS["warn"]
+        self.alert_banner.configure(bg=bg)
+        for child in self.alert_banner.winfo_children():
+            child.configure(bg=bg, fg=fg)
+        self.alert_banner.grid()
+        self.set_status(f"Network guard: {alert.title}")
+        self.monitor.mark_notified(alert.id)
+        if alert.severity == "danger":
+            # Non-blocking-ish notify: show warning dialog for dangerous events.
+            messagebox.showwarning("Assist Network Guard", f"{alert.title}\n\n{alert.detail}")
+
+    def _render_alerts(self) -> None:
+        for child in self.alerts_frame.winfo_children():
+            child.destroy()
+        alerts = self.monitor.snapshot().alerts[:4]
+        if not alerts:
+            ttk.Label(
+                self.alerts_frame,
+                text="No dangerous or strange network events detected yet.",
+                style="Status.TLabel",
+            ).pack(anchor="w")
+            self.alert_banner.grid_remove()
+            return
+        for alert in alerts:
+            card = tk.Frame(
+                self.alerts_frame,
+                bg=COLORS["panel"],
+                highlightbackground=COLORS["line"],
+                highlightthickness=1,
+                bd=0,
+            )
+            card.pack(fill="x", pady=4)
+            inner = ttk.Frame(card, style="Card.TFrame", padding=(12, 10))
+            inner.pack(fill="x")
+            title_color = COLORS["danger"] if alert.severity == "danger" else COLORS["warn"]
+            tk.Label(
+                inner,
+                text=f"{alert.severity.upper()} · {alert.title}",
+                bg=COLORS["panel"],
+                fg=title_color,
+                font=("Segoe UI Semibold", 10),
+                anchor="w",
+                justify="left",
+            ).pack(fill="x")
+            tk.Label(
+                inner,
+                text=alert.detail,
+                bg=COLORS["panel"],
+                fg=COLORS["ink"],
+                font=("Segoe UI", 9),
+                anchor="w",
+                justify="left",
+                wraplength=640,
+            ).pack(fill="x", pady=(2, 0))
+            tk.Label(
+                inner,
+                text=alert.created_at,
+                bg=COLORS["panel"],
+                fg=COLORS["muted"],
+                font=("Segoe UI", 8),
+                anchor="w",
+            ).pack(fill="x", pady=(2, 0))
+
+    def clear_alerts(self) -> None:
+        self.monitor.clear_alerts()
+        self.alert_banner.grid_remove()
+        self._render_alerts()
+        self.set_status("Alerts cleared.")
+
+    def _test_alert(self) -> None:
+        finding = ThreatFinding(
+            severity="danger",
+            title="Test: suspicious listener on port 4444",
+            detail="Synthetic alert to verify notifications. No real threat was found.",
+            category="test",
+            evidence=f"test:{datetime.now().timestamp()}",
+        )
+        alert = self.monitor.inject_finding(finding)
+        if alert:
+            self._notify_alert(alert)
+
+    def _on_close(self) -> None:
+        try:
+            self.monitor.stop()
+        except Exception:  # noqa: BLE001
+            pass
+        self.destroy()
+
 
 def run() -> None:
     app = AssistApp()
     app.mainloop()
+
