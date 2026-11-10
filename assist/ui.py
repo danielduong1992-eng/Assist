@@ -35,8 +35,8 @@ class AssistApp(tk.Tk):
     def __init__(self) -> None:
         super().__init__()
         self.title("Assist")
-        self.geometry("760x640")
-        self.minsize(420, 520)
+        self.geometry("380x520")
+        self.minsize(320, 420)
         self.configure(bg=COLORS["bg"])
 
         self.places: list[dict[str, Any]] = storage.load_places()
@@ -74,104 +74,71 @@ class AssistApp(tk.Tk):
             "Brand.TLabel",
             background=COLORS["bg"],
             foreground=COLORS["ink"],
-            font=("Segoe UI Semibold", 34),
-        )
-        style.configure(
-            "Headline.TLabel",
-            background=COLORS["bg"],
-            foreground=COLORS["ink"],
-            font=("Georgia", 16),
+            font=("Segoe UI Semibold", 18),
         )
         style.configure(
             "Muted.TLabel",
             background=COLORS["bg"],
             foreground=COLORS["muted"],
-            font=("Segoe UI", 10),
+            font=("Segoe UI", 8),
         )
         style.configure(
             "Status.TLabel",
             background=COLORS["bg"],
             foreground=COLORS["muted"],
-            font=("Segoe UI", 9),
-        )
-        style.configure(
-            "AlertTitle.TLabel",
-            background=COLORS["panel"],
-            foreground=COLORS["danger"],
-            font=("Segoe UI Semibold", 11),
-        )
-        style.configure(
-            "AlertBody.TLabel",
-            background=COLORS["panel"],
-            foreground=COLORS["ink"],
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 8),
         )
         style.configure(
             "Guard.TLabel",
             background=COLORS["bg"],
             foreground=COLORS["ink"],
-            font=("Georgia", 13),
+            font=("Segoe UI Semibold", 9),
         )
         style.configure(
             "Name.TLabel",
             background=COLORS["panel"],
             foreground=COLORS["ink"],
-            font=("Georgia", 15),
+            font=("Segoe UI Semibold", 10),
         )
         style.configure(
             "Region.TLabel",
             background=COLORS["panel"],
             foreground=COLORS["muted"],
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 8),
         )
         style.configure(
             "Time.TLabel",
             background=COLORS["panel"],
             foreground=COLORS["ink"],
-            font=("Segoe UI Semibold", 22),
+            font=("Segoe UI Semibold", 12),
         )
         style.configure(
             "Date.TLabel",
             background=COLORS["panel"],
             foreground=COLORS["muted"],
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 8),
         )
         style.configure(
             "Temp.TLabel",
             background=COLORS["panel"],
             foreground=COLORS["ink"],
-            font=("Segoe UI Semibold", 20),
+            font=("Segoe UI Semibold", 12),
         )
         style.configure(
             "Condition.TLabel",
             background=COLORS["panel"],
             foreground=COLORS["muted"],
-            font=("Segoe UI", 9),
+            font=("Segoe UI", 8),
         )
         style.configure(
             "Accent.TButton",
-            font=("Segoe UI Semibold", 10),
-            padding=(14, 8),
+            font=("Segoe UI Semibold", 9),
+            padding=(10, 4),
         )
         style.map(
             "Accent.TButton",
             background=[("!disabled", COLORS["accent"]), ("disabled", "#8aa9a6")],
             foreground=[("!disabled", COLORS["accent_text"]), ("disabled", "#f2f8f7")],
-        )
-        style.configure(
-            "Ghost.TButton",
-            font=("Segoe UI", 9),
-            padding=(8, 4),
-            background=COLORS["panel"],
-            foreground=COLORS["danger"],
-        )
-        style.configure(
-            "Suggest.TButton",
-            font=("Segoe UI", 10),
-            padding=(10, 8),
-            background=COLORS["panel"],
-            foreground=COLORS["ink"],
-            anchor="w",
         )
         style.configure(
             "Vertical.TScrollbar",
@@ -185,43 +152,31 @@ class AssistApp(tk.Tk):
         self.columnconfigure(0, weight=1)
         self.rowconfigure(1, weight=1)
 
-        header = ttk.Frame(self, style="Root.TFrame", padding=(22, 20, 22, 8))
+        header = ttk.Frame(self, style="Root.TFrame", padding=(12, 10, 12, 4))
         header.grid(row=0, column=0, sticky="ew")
-        header.columnconfigure(0, weight=1)
+        header.columnconfigure(1, weight=1)
 
         ttk.Label(header, text="Assist", style="Brand.TLabel").grid(row=0, column=0, sticky="w")
-        ttk.Label(
-            header,
-            text="Your places, local time, and weather.",
-            style="Headline.TLabel",
-        ).grid(row=1, column=0, sticky="w", pady=(6, 0))
-        ttk.Label(
-            header,
-            text="A light daily desk for the cities you work across.",
-            style="Muted.TLabel",
-        ).grid(row=2, column=0, sticky="w", pady=(4, 12))
+        self.status_var = tk.StringVar(value="Ready")
+        ttk.Label(header, textvariable=self.status_var, style="Status.TLabel").grid(
+            row=0, column=1, sticky="e", padx=(8, 0)
+        )
 
         search = ttk.Frame(header, style="Root.TFrame")
-        search.grid(row=3, column=0, sticky="ew")
+        search.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(8, 0))
         search.columnconfigure(0, weight=1)
 
         self.query_var = tk.StringVar()
-        self.query_entry = ttk.Entry(search, textvariable=self.query_var, font=("Segoe UI", 11))
-        self.query_entry.grid(row=0, column=0, sticky="ew", ipady=6, padx=(0, 8))
-        self.query_entry.insert(0, "")
+        self.query_entry = ttk.Entry(search, textvariable=self.query_var, font=("Segoe UI", 9))
+        self.query_entry.grid(row=0, column=0, sticky="ew", ipady=2, padx=(0, 6))
         self.query_entry.bind("<Return>", lambda _e: self.add_place())
         self.query_entry.bind("<KeyRelease>", self._on_query_typed)
 
         self.add_btn = ttk.Button(search, text="Add", style="Accent.TButton", command=self.add_place)
         self.add_btn.grid(row=0, column=1, sticky="e")
 
-        self.status_var = tk.StringVar(value="Ready")
-        ttk.Label(header, textvariable=self.status_var, style="Status.TLabel").grid(
-            row=4, column=0, sticky="w", pady=(8, 0)
-        )
-
         self.alert_banner = tk.Frame(header, bg=COLORS["danger_bg"], highlightthickness=0)
-        self.alert_banner.grid(row=5, column=0, sticky="ew", pady=(10, 0))
+        self.alert_banner.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(6, 0))
         self.alert_banner.grid_remove()
         self.alert_banner_var = tk.StringVar(value="")
         tk.Label(
@@ -229,27 +184,27 @@ class AssistApp(tk.Tk):
             textvariable=self.alert_banner_var,
             bg=COLORS["danger_bg"],
             fg=COLORS["danger"],
-            font=("Segoe UI Semibold", 10),
+            font=("Segoe UI Semibold", 8),
             justify="left",
             anchor="w",
-            padx=12,
-            pady=8,
-            wraplength=640,
+            padx=8,
+            pady=4,
+            wraplength=340,
         ).pack(fill="x")
 
         guard = ttk.Frame(header, style="Root.TFrame")
-        guard.grid(row=6, column=0, sticky="ew", pady=(12, 0))
+        guard.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(8, 0))
         guard.columnconfigure(0, weight=1)
-        ttk.Label(guard, text="Network guard", style="Guard.TLabel").grid(row=0, column=0, sticky="w")
-        self.guard_status_var = tk.StringVar(value="Starting monitor…")
+        ttk.Label(guard, text="Guard", style="Guard.TLabel").grid(row=0, column=0, sticky="w")
+        self.guard_status_var = tk.StringVar(value="Starting…")
         ttk.Label(guard, textvariable=self.guard_status_var, style="Status.TLabel").grid(
-            row=1, column=0, sticky="w", pady=(2, 0)
+            row=0, column=1, sticky="w", padx=(6, 0)
         )
         actions = ttk.Frame(guard, style="Root.TFrame")
-        actions.grid(row=0, column=1, rowspan=2, sticky="e")
+        actions.grid(row=0, column=2, sticky="e")
         tk.Button(
             actions,
-            text="Clear alerts",
+            text="Clear",
             command=self.clear_alerts,
             bg=COLORS["panel"],
             fg=COLORS["ink"],
@@ -257,13 +212,13 @@ class AssistApp(tk.Tk):
             relief="groove",
             bd=1,
             cursor="hand2",
-            font=("Segoe UI", 9),
-            padx=10,
-            pady=4,
-        ).grid(row=0, column=0, padx=(0, 6))
+            font=("Segoe UI", 8),
+            padx=6,
+            pady=1,
+        ).grid(row=0, column=0, padx=(0, 4))
         tk.Button(
             actions,
-            text="Test alert",
+            text="Test",
             command=self._test_alert,
             bg=COLORS["accent"],
             fg=COLORS["accent_text"],
@@ -272,20 +227,20 @@ class AssistApp(tk.Tk):
             relief="flat",
             bd=0,
             cursor="hand2",
-            font=("Segoe UI Semibold", 9),
-            padx=12,
-            pady=5,
+            font=("Segoe UI Semibold", 8),
+            padx=8,
+            pady=2,
         ).grid(row=0, column=1)
 
         self.alerts_frame = ttk.Frame(header, style="Root.TFrame")
-        self.alerts_frame.grid(row=7, column=0, sticky="ew", pady=(8, 0))
+        self.alerts_frame.grid(row=4, column=0, columnspan=2, sticky="ew", pady=(4, 0))
 
         self._suggest_results: list[dict[str, Any]] = []
         self.suggest_list = tk.Listbox(
             self,
-            height=5,
+            height=4,
             activestyle="dotbox",
-            font=("Segoe UI", 10),
+            font=("Segoe UI", 8),
             bg=COLORS["panel"],
             fg=COLORS["ink"],
             selectbackground=COLORS["chip"],
@@ -299,7 +254,7 @@ class AssistApp(tk.Tk):
         self.suggest_list.bind("<Double-Button-1>", self._on_suggest_activate)
         self.suggest_list.bind("<Escape>", lambda _e: self._hide_suggestions())
 
-        body = ttk.Frame(self, style="Root.TFrame", padding=(18, 4, 18, 18))
+        body = ttk.Frame(self, style="Root.TFrame", padding=(12, 2, 12, 8))
         body.grid(row=1, column=0, sticky="nsew")
         body.columnconfigure(0, weight=1)
         body.rowconfigure(0, weight=1)
@@ -319,9 +274,9 @@ class AssistApp(tk.Tk):
 
         footer = ttk.Label(
             self,
-            text="Weather via Open-Meteo  ·  Network guard watches this PC  ·  Places saved locally",
+            text="Open-Meteo · local places · network guard",
             style="Muted.TLabel",
-            padding=(22, 0, 22, 14),
+            padding=(12, 0, 12, 8),
         )
         footer.grid(row=2, column=0, sticky="w")
 
@@ -391,7 +346,7 @@ class AssistApp(tk.Tk):
         self.update_idletasks()
         x = self.query_entry.winfo_rootx() - self.winfo_rootx()
         y = self.query_entry.winfo_rooty() - self.winfo_rooty() + self.query_entry.winfo_height() + 4
-        width = max(self.query_entry.winfo_width() + self.add_btn.winfo_width() + 8, 280)
+        width = max(self.query_entry.winfo_width() + self.add_btn.winfo_width() + 8, 240)
         self.suggest_list.place(x=x, y=y, width=width)
         self.suggest_list.lift()
         self.suggest_list.selection_clear(0, tk.END)
@@ -523,14 +478,9 @@ class AssistApp(tk.Tk):
         self._place_frames.clear()
 
         if not self.places:
-            empty = ttk.Frame(self.list_frame, style="Card.TFrame", padding=18)
-            empty.pack(fill="x", pady=6)
-            ttk.Label(empty, text="No places yet", style="Name.TLabel").pack(anchor="w")
-            ttk.Label(
-                empty,
-                text="Add a city above to track its local time and weather.",
-                style="Region.TLabel",
-            ).pack(anchor="w", pady=(4, 0))
+            empty = ttk.Frame(self.list_frame, style="Card.TFrame", padding=10)
+            empty.pack(fill="x", pady=3)
+            ttk.Label(empty, text="No places yet — add a city above.", style="Region.TLabel").pack(anchor="w")
             return
 
         for place in self.places:
@@ -546,35 +496,39 @@ class AssistApp(tk.Tk):
             highlightthickness=1,
             bd=0,
         )
-        card.pack(fill="x", pady=6)
+        card.pack(fill="x", pady=3)
 
-        inner = ttk.Frame(card, style="Card.TFrame", padding=(16, 14))
+        inner = ttk.Frame(card, style="Card.TFrame", padding=(10, 8))
         inner.pack(fill="x")
-        inner.columnconfigure(0, weight=1)
+        inner.columnconfigure(1, weight=1)
 
         left = ttk.Frame(inner, style="Card.TFrame")
         left.grid(row=0, column=0, sticky="nw")
         ttk.Label(left, text=place["name"], style="Name.TLabel").pack(anchor="w")
         region = ", ".join(part for part in (place["admin"], place["country"]) if part)
         if region:
-            ttk.Label(left, text=region, style="Region.TLabel").pack(anchor="w", pady=(2, 0))
-        time_lbl = ttk.Label(left, text="--:--:--", style="Time.TLabel")
-        time_lbl.pack(anchor="w", pady=(10, 0))
-        date_lbl = ttk.Label(left, text="", style="Date.TLabel")
-        date_lbl.pack(anchor="w", pady=(2, 0))
+            ttk.Label(left, text=region, style="Region.TLabel").pack(anchor="w")
+
+        mid = ttk.Frame(inner, style="Card.TFrame")
+        mid.grid(row=0, column=1, sticky="w", padx=(10, 0))
+        time_lbl = ttk.Label(mid, text="--:--", style="Time.TLabel")
+        time_lbl.pack(anchor="w")
+        date_lbl = ttk.Label(mid, text="", style="Date.TLabel")
+        date_lbl.pack(anchor="w")
 
         right = ttk.Frame(inner, style="Card.TFrame")
-        right.grid(row=0, column=1, sticky="ne", padx=(12, 0))
+        right.grid(row=0, column=2, sticky="ne")
         temp_lbl = ttk.Label(right, text="—", style="Temp.TLabel")
         temp_lbl.pack(anchor="e")
-        condition_lbl = ttk.Label(right, text="Loading…", style="Condition.TLabel")
+        condition_lbl = ttk.Label(right, text="…", style="Condition.TLabel")
         condition_lbl.pack(anchor="e")
         extras_lbl = ttk.Label(right, text="", style="Condition.TLabel")
-        extras_lbl.pack(anchor="e", pady=(2, 0))
+        # Keep extras label for updates, but hide dense humidity/wind in compact UI.
+        extras_lbl.pack_forget()
 
         remove_btn = tk.Button(
             inner,
-            text="Remove",
+            text="×",
             command=lambda pid=place["id"]: self.remove_place(pid),
             bg=COLORS["panel"],
             fg=COLORS["danger"],
@@ -583,11 +537,11 @@ class AssistApp(tk.Tk):
             relief="flat",
             bd=0,
             cursor="hand2",
-            font=("Segoe UI Semibold", 9),
-            padx=0,
-            pady=2,
+            font=("Segoe UI Semibold", 11),
+            padx=4,
+            pady=0,
         )
-        remove_btn.grid(row=1, column=0, columnspan=2, sticky="w", pady=(10, 0))
+        remove_btn.grid(row=0, column=3, sticky="ne", padx=(6, 0))
 
         self._place_frames[place["id"]] = {
             "time": time_lbl,
@@ -605,8 +559,8 @@ class AssistApp(tk.Tk):
                 local = now_utc.astimezone(ZoneInfo(meta["timezone"]))
             except Exception:  # noqa: BLE001 - invalid tz falls back to local
                 local = now_utc
-            meta["time"].configure(text=local.strftime("%I:%M:%S %p").lstrip("0"))
-            meta["date"].configure(text=local.strftime("%a, %b %d"))
+            meta["time"].configure(text=local.strftime("%I:%M %p").lstrip("0"))
+            meta["date"].configure(text=local.strftime("%a %b %d"))
         self.after(1000, self._tick_clocks)
 
     def _update_weather_labels(self) -> None:
@@ -614,20 +568,13 @@ class AssistApp(tk.Tk):
             weather = self.weather_by_id.get(place_id)
             if not weather:
                 meta["temp"].configure(text="—")
-                meta["condition"].configure(text="Loading…")
+                meta["condition"].configure(text="…")
                 meta["extras"].configure(text="")
                 continue
             temp = weather.get("temperature")
             meta["temp"].configure(text=f"{round(temp)}°" if isinstance(temp, (int, float)) else "—")
             meta["condition"].configure(text=weather_label(weather.get("weather_code")))
-            bits = []
-            humidity = weather.get("humidity")
-            wind = weather.get("wind")
-            if isinstance(humidity, (int, float)):
-                bits.append(f"{int(humidity)}% humidity")
-            if isinstance(wind, (int, float)):
-                bits.append(f"{round(wind)} km/h wind")
-            meta["extras"].configure(text=" · ".join(bits))
+            meta["extras"].configure(text="")
 
     def _start_monitor(self) -> None:
         self.monitor.start()
@@ -638,11 +585,9 @@ class AssistApp(tk.Tk):
         snap = self.monitor.snapshot()
         mode = snap.mode.replace("+", " + ")
         if snap.running:
-            self.guard_status_var.set(
-                f"Watching ({mode}) · {snap.connection_samples} connection scans · {len(snap.alerts)} alerts"
-            )
+            self.guard_status_var.set(f"{mode} · {len(snap.alerts)} alert(s)")
         else:
-            self.guard_status_var.set("Monitor stopped")
+            self.guard_status_var.set("stopped")
         if snap.last_error and "Packet capture unavailable" in snap.last_error:
             # Soft note only — connection analysis still runs.
             pass
@@ -678,13 +623,8 @@ class AssistApp(tk.Tk):
     def _render_alerts(self) -> None:
         for child in self.alerts_frame.winfo_children():
             child.destroy()
-        alerts = self.monitor.snapshot().alerts[:4]
+        alerts = self.monitor.snapshot().alerts[:2]
         if not alerts:
-            ttk.Label(
-                self.alerts_frame,
-                text="No dangerous or strange network events detected yet.",
-                style="Status.TLabel",
-            ).pack(anchor="w")
             self.alert_banner.grid_remove()
             return
         for alert in alerts:
@@ -695,8 +635,8 @@ class AssistApp(tk.Tk):
                 highlightthickness=1,
                 bd=0,
             )
-            card.pack(fill="x", pady=4)
-            inner = ttk.Frame(card, style="Card.TFrame", padding=(12, 10))
+            card.pack(fill="x", pady=2)
+            inner = ttk.Frame(card, style="Card.TFrame", padding=(8, 5))
             inner.pack(fill="x")
             title_color = COLORS["danger"] if alert.severity == "danger" else COLORS["warn"]
             tk.Label(
@@ -704,28 +644,12 @@ class AssistApp(tk.Tk):
                 text=f"{alert.severity.upper()} · {alert.title}",
                 bg=COLORS["panel"],
                 fg=title_color,
-                font=("Segoe UI Semibold", 10),
+                font=("Segoe UI Semibold", 8),
                 anchor="w",
                 justify="left",
+                wraplength=340,
             ).pack(fill="x")
-            tk.Label(
-                inner,
-                text=alert.detail,
-                bg=COLORS["panel"],
-                fg=COLORS["ink"],
-                font=("Segoe UI", 9),
-                anchor="w",
-                justify="left",
-                wraplength=640,
-            ).pack(fill="x", pady=(2, 0))
-            tk.Label(
-                inner,
-                text=alert.created_at,
-                bg=COLORS["panel"],
-                fg=COLORS["muted"],
-                font=("Segoe UI", 8),
-                anchor="w",
-            ).pack(fill="x", pady=(2, 0))
+
 
     def clear_alerts(self) -> None:
         self.monitor.clear_alerts()
