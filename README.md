@@ -2,20 +2,34 @@
 
 Light Windows desktop app for daily work across places — local time, weather, and a network guard that watches for strange or dangerous traffic.
 
+## Easiest way to run (Windows `.exe`)
+
+### Option A — download the built exe (recommended)
+
+1. Open the GitHub Actions run for this branch: **Build Assist.exe**
+2. Download the **Assist-windows** artifact
+3. Unzip and double-click **`Assist.exe`**
+
+If SmartScreen appears: **More info → Run anyway**.
+
+### Option B — build the exe on your PC
+
+1. Install [Python 3.10+](https://www.python.org/downloads/) (check **Add python.exe to PATH**)
+2. Double-click **`Build Assist.exe.bat`**
+3. When it finishes, double-click **`Release\Assist.exe`**
+
+That creates a single-file windowed app — no console window, no Python needed to run it afterward.
+
 ## Features
 
 - Live local time for each saved place
 - Current weather (Open-Meteo, no API key)
 - Add / remove places
-- **Network guard**: analyzes connections (and packets when permitted); notifies you on dangerous or strange events
-- Places and alerts saved on this PC (`%USERPROFILE%\.assist\`)
+- Network guard alerts for suspicious listeners, watched ports, and scan-like bursts
+- Compact small window (~380×520)
+- Data saved under `%USERPROFILE%\.assist\`
 
-## Requirements
-
-- Windows 10/11
-- Python 3.10+ (python.org installer includes `tkinter`)
-
-## Run
+## Run from source
 
 ```bat
 pip install -r requirements.txt
@@ -24,23 +38,8 @@ python main.py
 
 Or double-click `scripts\run-assist.bat`.
 
-## Network guard
+## Network guard notes
 
-- Default mode: light **connection analysis** (no admin required)
-- Optional **packet capture** on Windows needs Administrator + Npcap
-- Alerts appear in-app; dangerous events also trigger a desktop warning dialog
-- Use **Test alert** to verify notifications
-
-## Build a Windows app folder
-
-```bat
-scripts\build-windows.bat
-```
-
-Then run `dist\Assist\Assist.exe`.
-
-## Light footprint
-
-- No web server, no Electron, no Node
-- Stdlib UI (`tkinter`) + HTTPS weather + defensive network monitoring
-- Optional PyInstaller only when packaging
+- Default: light connection analysis (no admin)
+- Packet capture on Windows needs Administrator + Npcap
+- Use **Test** in the Guard row to verify notifications
